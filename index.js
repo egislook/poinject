@@ -54,12 +54,13 @@ exports.createPoinjectValueByParent = (text, parent, type = 'field') => {
 
   if(parent){
     let parentField = lodash.find(flatArr, { id: parent });
+    let ancestors = parentField.ancestors && parentField.ancestors.slice() || [];
+    ancestors.push(parent);
     extras = {
       parent,
-      ancestors: parentField.ancestors || [],
+      ancestors,
       path: parentField.path && `${parentField.path}.${parentField.value}` || parentField.value
     };
-    extras.ancestors.push(parent);
   }
 
   //console.log(text, parent, extras);
@@ -94,9 +95,11 @@ exports.clonePoinjectById = (id) => {
     let children = lodash.filter(flatArr, { parent: origParent.id });
 
     children.forEach((child) => {
+      let ancestors = newParent.ancestors && newParent.ancestors.slice() || [];
+      ancestors.push(newParent.id);
       let extras = {
-        ancestors: newParent.ancestors,
-        path: newParent.path + '.' + newParent.value,
+        ancestors,
+        path: newParent.path ? newParent.path + '.' + newParent.value : newParent.value,
         parent: newParent.id
       };
 
