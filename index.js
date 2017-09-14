@@ -5,7 +5,7 @@ const uuid    = require('uuid/v4'),
       fs      = require('fs'),
       lodash  = require('lodash');
 
-let flatArr = [], pointree = {}, topLevelKeyName = 'obj', jsonFilePath;
+let flatArr = [], pointree = {}, jsonFilePath;
 
 exports.jsonToPoinject = (object) => {
   pointree = toPoinject(object);
@@ -157,8 +157,9 @@ exports.deletePoinjectValueById = (id) => {
 
   let removed = [];
   flatArr = lodash.filter(flatArr, (leaf) => {
-    //&& (!leaf.ancestors || leaf.ancestors && leaf.ancestors.indexOf(id) === -1)
-    if(leaf.id !== id && leaf.parent !== id)
+    
+    if(leaf.id !== id && leaf.parent !== id
+      && (!leaf.ancestors || leaf.ancestors && leaf.ancestors.indexOf(id) === -1) )
       return true;
     else{
       removed.push(leaf);
