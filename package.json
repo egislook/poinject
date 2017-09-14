@@ -4,6 +4,7 @@
   "description": "JSON to poinject converter, editor, storage",
   "main": "index.js",
   "scripts": {
+    "install": "npm install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -13,6 +14,11 @@
     "node"
   ],
   "author": "noneedsystem",
+  "repository":
+  {
+    "type" : "git",
+    "url" : "https://github.com/noneedsystem/poinject.git"
+  },
   "license": "ISC",
   "dependencies": {
     "lodash": "^4.17.4",
