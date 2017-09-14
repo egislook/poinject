@@ -90,23 +90,28 @@ exports.clonePoinjectById = (id) => {
 
   deepClone(leaf, field);
 
+  function deepClone(origParent, newParent){
+    let children = lodash.filter(flatArr, { parent: origParent.id });
+
+    children.forEach((child) => {
+      let extras = {
+        ancestors: newParent.ancestors,
+        path: newParent.path + '.' + newParent.value,
+        parent: newParent.id
+      };
+
+      let newLeaf = child.type === 'field'
+        ? fieldModel(getUID(), child.value, null, extras)
+        : valueModel(getUID(), child.value, extras)
+
+      flatArr.push(newLeaf);
+
+      if(newLeaf.type === 'field')
+        return deepClone(child, newLeaf);
+    })
+  }
+
   return { poinject: flatArr, content: objToFile(jsonFilePath, json()), field };
-}
-
-function deepClone(origParent, newParent){
-  let children = lodash.filter(flatArr, { parent: origParent.id });
-
-  children.forEach((child) => {
-    let extras = { ancestors: newParent.ancestors, path: newParent.path + '.' + newParent.value, parent: newParent.id };
-    let newLeaf = child.type === 'field'
-      ? fieldModel(getUID(), child.value, null, extras)
-      : valueModel(getUID(), child.value, extras)
-
-    flatArr.push(newLeaf);
-
-    if(newLeaf.type === 'field')
-      return deepClone(child, newLeaf);
-  })
 }
 
 /** Modifies value of given field or value id*/
@@ -117,17 +122,31 @@ exports.editPoinjectValueById = (id, value) => {
   if(leaf.parent && lodash.find(flatArr, { parent: leaf.parent, value }))
     return;
     //throw new Error('id or value argument is not specified');
-  let success = false;
+  let changed = [];
   flatArr = flatArr.map(obj => {
-    if(obj.id !== id)
+    if(obj.id === id){
+      changed.push(obj);
+      obj.value = value;
       return obj;
+    }
 
-    obj.value = value;
-    success = true;
+    if(obj.ancestors){
+      let index = obj.ancestors.indexOf(id);
+
+      if(index < 0)
+        return obj;
+
+      let path = obj.path.split('.');
+      path[index] = value;
+      obj.path = path.join('.');
+      changed.push(obj);
+      return obj;
+    }
+
     return obj;
   });
 
-  return success && { poinject: flatArr, content: objToFile(jsonFilePath, json()) };
+  return { poinject: flatArr, content: objToFile(jsonFilePath, json()), changed };
 }
 
 exports.deletePoinjectValueById = (id) => {
