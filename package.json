@@ -1,6 +1,6 @@
 {
   "name": "poinject",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "JSON to poinject converter, editor, storage",
   "main": "index.js",
   "scripts": {
@@ -13,10 +13,9 @@
     "node"
   ],
   "author": "noneedsystem",
-  "repository":
-  {
-    "type" : "git",
-    "url" : "https://github.com/noneedsystem/poinject.git"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/noneedsystem/poinject.git"
   },
   "license": "MIT",
   "dependencies": {
