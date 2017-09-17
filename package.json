@@ -1,6 +1,6 @@
 {
   "name": "poinject",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "JSON to poinject converter, editor, storage",
   "main": "index.js",
   "scripts": {
