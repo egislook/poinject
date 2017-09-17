@@ -152,12 +152,26 @@ exports.editPoinjectValueById = (id, value) => {
   return { poinject: flatArr, content: objToFile(jsonFilePath, json()), changed };
 }
 
+exports.movePoinjectToSiblingId = (id, siblingId) => {
+  if(!id || !siblingId) return;
+
+  let leafIndex = flatArr.findIndex(obj => obj.id === id);
+  let siblingIndex = flatArr.findIndex(obj => obj.id === siblingId);
+
+  console.log();
+
+  flatArr[leafIndex] = Object.assign(flatArr[leafIndex], { parent: flatArr[siblingIndex].parent });
+  flatArr.splice(siblingIndex, 0, flatArr.splice(leafIndex, 1)[0]);
+
+  return { poinject: flatArr, content: objToFile(jsonFilePath, json()), leafIndex, siblingIndex }
+}
+
 exports.deletePoinjectValueById = (id) => {
   if(!id) return;
 
   let removed = [];
   flatArr = lodash.filter(flatArr, (leaf) => {
-    
+
     if(leaf.id !== id && leaf.parent !== id
       && (!leaf.ancestors || leaf.ancestors && leaf.ancestors.indexOf(id) === -1) )
       return true;
@@ -202,6 +216,7 @@ function toPoinject(objOrStr, extraObj = {}){
       _UID = getUID();
       let path      = extraObj.path       ? `${extraObj.path}.${_key}`  : _key;
       let ancestors = extraObj.ancestors  ? extraObj.ancestors.slice(0) : [];
+      //let position  = extraObj.position   ? `${extraObj.position}a`     : 'a';
       ancestors.push(_UID);
 
       _childExtra = { parent: _UID, path, ancestors };
