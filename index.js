@@ -1,11 +1,23 @@
 'use strict';
 
-const uuid    = require('uuid/v4'),
-      shortid = require('shortid'),
-      fs      = require('fs'),
-      lodash  = require('lodash');
+const uuid      = require('uuid/v4'),
+      shortid   = require('shortid'),
+      fs        = require('fs'),
+      lodash    = require('lodash'),
+      validator = require('validator');
 
-let flatArr = [], pointree = {}, jsonFilePath;
+let flatArr = [], pointree = {}, jsonFilePath, schemas = {
+  url: {
+    type: 'string',
+    max: 2048,
+    min: 1,
+  },
+  text: {
+    type: 'string',
+    min: 1,
+    max: 2000,
+  }
+};
 
 exports.jsonToPoinject = (object) => {
   pointree = toPoinject(object);
@@ -83,6 +95,66 @@ exports.createPoinjectValueByParent = (text, parent, type = 'field') => {
   return { poinject: flatArr, content: objToFile(jsonFilePath, json()), leaf }
 }
 
+exports.createChunkBySchema = (schemaPath, data) => {
+  const schema = json(schemaPath);
+  const invalid = validateDataBySchema(schema, data);
+  const schemaName = schemaPath.split('.').pop();
+  if(invalid)
+    return invalid;
+
+  let container = lodash.find(flatArr, { value: schemaName + 's', type: 'field'});
+
+  if(!container){
+    data = { [schemaName + 's']: {
+      [getUID(schemaName)]: data
+    }};
+
+    const chunk = [];
+    toPoinject(data, undefined, chunk);
+    flatArr = flatArr.concat(chunk);
+    return { poinject: flatArr, content: objToFile(jsonFilePath, json()), chunk }
+  }
+
+  if(container){
+    data = { [getUID(schemaName)]: data };
+    const chunk = [];
+    toPoinject(data, { path: container.value, parent: container.id }, chunk);
+    //console.log(chunk);
+    flatArr = flatArr.concat(chunk);
+    return { poinject: flatArr, content: objToFile(jsonFilePath, json()), chunk }
+  }
+
+  return {schema, data};
+}
+
+function validateDataBySchema(schema, data){
+  for(let key in schema){
+    let field = schema[key];
+    let value = data[key];
+
+    if(!field.type){
+      let errObj = validateDataBySchema(field, value);
+      if(errObj)
+        return errObj;
+    }
+
+    if(field.required){
+      if(!value)
+        return { ok: false, msg: `required field "${key}" value "${value}" is incorrect`};
+
+      if(['image', 'url'].indexOf(field.type) >= 0 && !validator.isURL(value, { require_host: false, require_valid_protocol: false }))
+          return { ok: false, msg: `required field "${key}" value "${value}" must be URL`};
+
+      if(!validator.isLength(value, { min: field.min, max: field.max }))
+        return { ok: false, msg: `required field "${key}" value "${value}" must be between ${field.min} & ${field.max}`};
+
+    } else {
+      if(value && typeof value !== 'object' && !validator.isLength(value, { min: field.min, max: field.max }))
+        return { ok: false, msg: `optional field "${key}" value "${value}" must be between ${field.min} & ${field.max}`};
+    }
+  }
+}
+
 exports.clonePoinjectById = (id) => {
   let leaf = lodash.find(flatArr, { id });
   let field = fieldModel(getUID(), `${leaf.value}-copy`, null, { ancestors: leaf.ancestors, path: leaf.path, parent: leaf.parent });
@@ -158,12 +230,12 @@ exports.movePoinjectToSiblingId = (id, siblingId) => {
   let leafIndex = flatArr.findIndex(obj => obj.id === id);
   let siblingIndex = flatArr.findIndex(obj => obj.id === siblingId);
 
-  console.log();
-
   flatArr[leafIndex] = Object.assign(flatArr[leafIndex], { parent: flatArr[siblingIndex].parent });
   flatArr.splice(siblingIndex, 0, flatArr.splice(leafIndex, 1)[0]);
 
-  return { poinject: flatArr, content: objToFile(jsonFilePath, json()), leafIndex, siblingIndex }
+  //if parent is not the same ancestors and paths has to be changed for children
+
+  return { poinject: flatArr, content: objToFile(jsonFilePath, json()) }
 }
 
 exports.deletePoinjectValueById = (id) => {
@@ -183,6 +255,19 @@ exports.deletePoinjectValueById = (id) => {
 
   return { poinject: flatArr, content: objToFile(jsonFilePath, json()), removed }
 }
+//
+// exports.getTree = (idOrPath) => {
+//
+//   return json(idOrPath);
+//   // function _deep(fields){
+//   //   let obj = {};
+//   //   for(let key in fields){
+//   //     fields
+//   //   }
+//   // }
+//   // return fields;
+//   //console.log(fields);
+// }
 
 function objToFile(filePath, obj){
   fs.writeFileSync(filePath, JSON.stringify(obj, null, 2));
@@ -205,7 +290,7 @@ function toJson(id){
   return obj;
 }
 
-function toPoinject(objOrStr, extraObj = {}){
+function toPoinject(objOrStr, extraObj = {}, storage){
   let _UID, _child, _value, _childExtra, _children = {};
 
   /** for fields */
@@ -220,11 +305,14 @@ function toPoinject(objOrStr, extraObj = {}){
       ancestors.push(_UID);
 
       _childExtra = { parent: _UID, path, ancestors };
-      _child = objOrStr[_key] && toPoinject(objOrStr[_key], _childExtra);
+      _child = objOrStr[_key] && toPoinject(objOrStr[_key], _childExtra, storage);
       _children[_UID] = fieldModel(_UID, _key, _child, extraObj);
 
       /** global arr or obj */
-      flatArr && flatArr.push(fieldModel(_UID, _key, null, extraObj));
+      if(storage)
+        storage.push(fieldModel(_UID, _key, null, extraObj));
+      else
+        flatArr && flatArr.push(fieldModel(_UID, _key, null, extraObj));
     });
     return _children;
   }
@@ -234,7 +322,10 @@ function toPoinject(objOrStr, extraObj = {}){
   _children[_value.id] = _value;
 
   /** global arr or obj */
-  flatArr && flatArr.push(_value);
+  if(storage)
+    storage.push(_value)
+  else
+    flatArr && flatArr.push(_value);
 
   return _children;
 }
